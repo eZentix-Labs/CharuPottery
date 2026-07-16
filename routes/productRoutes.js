@@ -14,6 +14,8 @@ const {
 const reviewRouter = require('./reviewRoutes');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { productValidation, validate } = require('../middleware/validators');
+const upload = require('../middleware/uploadMiddleware');
+const parseProductForm = require('../middleware/productFormMiddleware');
 
 // Nested route: /api/v1/products/:productId/reviews
 router.use('/:productId/reviews', reviewRouter);
@@ -24,7 +26,15 @@ router.get('/:id/related', getRelatedProducts);
 router
   .route('/')
   .get(getProducts)
-  .post(protect, authorize('admin'), productValidation, validate, createProduct);
+  .post(
+    protect,
+    authorize('admin'),
+    upload.array('images', 6),
+    parseProductForm,
+    productValidation,
+    validate,
+    createProduct
+  );
 
 router
   .route('/:idOrSlug')
@@ -32,7 +42,7 @@ router
 
 router
   .route('/:id')
-  .put(protect, authorize('admin'), updateProduct)
+  .put(protect, authorize('admin'), upload.array('images', 6), parseProductForm, updateProduct)
   .delete(protect, authorize('admin'), deleteProduct);
 
 router.delete(

@@ -1,6 +1,12 @@
+const fs = require('fs');
+const path = require('path');
 const asyncHandler = require('express-async-handler');
 const cloudinary = require('../config/cloudinary');
 const ApiError = require('../utils/ApiError');
+const User = require('../models/User');
+
+const AVATAR_DIR = path.join(__dirname, '..', 'uploads', 'avatars');
+fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
 const streamUpload = (fileBuffer, folder) => {
   return new Promise((resolve, reject) => {
@@ -45,12 +51,24 @@ exports.uploadAvatar = asyncHandler(async (req, res) => {
     throw new ApiError('Please attach an image.', 400);
   }
 
-  const result = await streamUpload(req.file.buffer, 'pottery-ecommerce/avatars');
+  // Store locally (Cloudinary is not configured) and persist on the user
+  const ext = path.extname(req.file.originalname) || '.jpg';
+  const filename = `avatar-${req.user.id}-${Date.now()}${ext}`;
+  fs.writeFileSync(path.join(AVATAR_DIR, filename), req.file.buffer);
 
-  res.status(200).json({
-    success: true,
-    data: { url: result.secure_url, public_id: result.public_id },
-  });
+  // Remove the previous locally-stored avatar file, if any
+  const prev = req.user.avatar?.public_id;
+  if (prev && prev.startsWith('avatar-')) {
+    fs.rm(path.join(AVATAR_DIR, prev), { force: true }, () => {});
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { avatar: { url: `/uploads/avatars/${filename}`, public_id: filename } },
+    { new: true }
+  );
+
+  res.status(200).json({ success: true, data: user });
 });
 
 // @desc    Delete an uploaded image from Cloudinary
