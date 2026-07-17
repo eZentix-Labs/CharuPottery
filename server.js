@@ -32,17 +32,13 @@ const app = express();
 app.set('trust proxy', 1); // Trust first proxy (for rate limiting behind proxies/load balancers)
 
 // ─── Security & utility middleware ───────────────────────────────
-// app.use(helmet());
-// app.use(
-//   cors({
-//     origin: process.env.CLIENT_URL || 'http://localhost:3000' ,
-//     credentials: true,
-//   })
-// );
-app.use(cors({
-  origin:true,
-  credentials: true,
-}));
+app.use(helmet());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000' ,
+    credentials: true,
+  })
+);
 app.use(compression());
 
 if (process.env.NODE_ENV === 'development') {
