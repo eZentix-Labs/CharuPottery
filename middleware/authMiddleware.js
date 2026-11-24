@@ -20,29 +20,27 @@ exports.protect = asyncHandler(async (req, res, next) => {
     throw new ApiError('Not authorized to access this route. Please log in.', 401);
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      throw new ApiError('The user belonging to this token no longer exists.', 401);
-    }
-
-    if (!user.isActive) {
-      throw new ApiError('This account has been deactivated.', 403);
-    }
-
-    req.user = user;
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     throw new ApiError('Not authorized, token failed or expired.', 401);
   }
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    throw new ApiError('The user belonging to this token no longer exists.', 401);
+  }
+  if (!user.isActive) {
+    throw new ApiError('This account has been deactivated.', 403);
+  }
+  req.user = user;
+  next();
 });
 
 // Restrict route access to specific roles e.g. authorize('admin')
 exports.authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!req.user || !roles.includes(req.user.role)) {
       throw new ApiError(
         `Role '${req.user.role}' is not permitted to access this resource.`,
         403
@@ -67,7 +65,8 @@ exports.optionalAuth = asyncHandler(async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id);
+      req.user = user && user.isActive ? user : null;
     } catch (error) {
       req.user = null;
     }

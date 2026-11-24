@@ -3,13 +3,14 @@ const jwt = require('jsonwebtoken');
 // Short-lived access token
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
+    expiresIn: process.env.JWT_EXPIRE || '15m',
   });
 };
 
 // Longer-lived refresh token
-const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+// `tv` (token version) lets logout / password change revoke refresh tokens.
+const generateRefreshToken = (id, tokenVersion = 0) => {
+  return jwt.sign({ id, tv: tokenVersion }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRE || '30d',
   });
 };
@@ -17,7 +18,7 @@ const generateRefreshToken = (id) => {
 // Sends access token as httpOnly cookie + JSON response, refresh token as httpOnly cookie
 const sendTokenResponse = (user, statusCode, res) => {
   const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const refreshToken = generateRefreshToken(user._id, user.tokenVersion || 0);
 
   const cookieExpire = process.env.JWT_COOKIE_EXPIRE || 7;
 

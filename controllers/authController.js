@@ -4,20 +4,31 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const sendEmail = require('../utils/sendEmail');
+const mongoose = require('mongoose');
+const Product = require('../models/Product');
 const { sendTokenResponse, generateAccessToken } = require('../utils/generateToken');
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
 // @access  Public
 exports.register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password, phone, whatsappOptIn } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new ApiError('An account with this email already exists.', 400);
   }
 
-  const user = await User.create({ name, email, password, phone });
+  // Role is never taken from the request: new accounts are always customers.
+  const user = await User.create({
+    name,
+    email,
+    password,
+    phone: phone || '',
+    ...(whatsappOptIn === true && phone && {
+      marketingConsent: { whatsapp: { optedIn: true, optedInAt: new Date(), source: 'register' } },
+    }),
+  });
 
   sendTokenResponse(user, 201, res);
 });
@@ -49,6 +60,8 @@ exports.login = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/auth/logout
 // @access  Private
 exports.logout = asyncHandler(async (req, res) => {
+  // Revoke every refresh token issued so far for this user.
+  await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
   res.cookie('accessToken', 'none', {
     expires: new Date(Date.now() + 5 * 1000),
     httpOnly: true,
@@ -79,8 +92,11 @@ exports.refreshToken = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findById(decoded.id);
-  if (!user) {
+  if (!user || !user.isActive) {
     throw new ApiError('User no longer exists.', 401);
+  }
+  if ((decoded.tv || 0) !== (user.tokenVersion || 0)) {
+    throw new ApiError('Session has ended. Please log in again.', 401);
   }
 
   const accessToken = generateAccessToken(user._id);
@@ -124,11 +140,12 @@ exports.updatePassword = asyncHandler(async (req, res) => {
 
   const user = await User.findById(req.user.id).select('+password');
 
-  if (!(await user.matchPassword(currentPassword))) {
+  if (!currentPassword || !(await user.matchPassword(currentPassword))) {
     throw new ApiError('Your current password is incorrect.', 401);
   }
 
   user.password = newPassword;
+  user.tokenVersion = (user.tokenVersion || 0) + 1; // sign out other sessions
   await user.save();
 
   sendTokenResponse(user, 200, res);
@@ -137,17 +154,39 @@ exports.updatePassword = asyncHandler(async (req, res) => {
 // @desc    Manage shipping addresses (add)
 // @route   POST /api/v1/auth/addresses
 // @access  Private
+const ADDRESS_FIELDS = ['label', 'street', 'city', 'state', 'postalCode', 'country', 'phone', 'isDefault'];
+const pickAddress = (body) => {
+  const out = {};
+  for (const k of ADDRESS_FIELDS) if (body[k] !== undefined) out[k] = typeof body[k] === 'string' ? body[k].trim() : body[k];
+  return out;
+};
+
 exports.addAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
-
-  if (req.body.isDefault) {
-    user.addresses.forEach((addr) => (addr.isDefault = false));
+  if (user.addresses.length >= 10) throw new ApiError('You can save at most 10 addresses.', 400);
+  const addr = pickAddress(req.body);
+  if (addr.isDefault || user.addresses.length === 0) {
+    user.addresses.forEach((a) => (a.isDefault = false));
+    addr.isDefault = true;
   }
-
-  user.addresses.push(req.body);
+  user.addresses.push(addr);
   await user.save();
 
   res.status(201).json({ success: true, data: user.addresses });
+});
+
+// @desc    Update a saved address (or make it the default)
+// @route   PUT /api/v1/auth/addresses/:addressId
+// @access  Private
+exports.updateAddress = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  const addr = user.addresses.id(req.params.addressId);
+  if (!addr) throw new ApiError('Address not found.', 404);
+  const updates = pickAddress(req.body);
+  if (updates.isDefault) user.addresses.forEach((a) => (a.isDefault = false));
+  Object.assign(addr, updates);
+  await user.save();
+  res.status(200).json({ success: true, data: user.addresses });
 });
 
 // @desc    Delete a shipping address
@@ -155,9 +194,11 @@ exports.addAddress = asyncHandler(async (req, res) => {
 // @access  Private
 exports.deleteAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
+  const removed = user.addresses.find((a) => a._id.toString() === req.params.addressId);
   user.addresses = user.addresses.filter(
     (addr) => addr._id.toString() !== req.params.addressId
   );
+  if (removed && removed.isDefault && user.addresses.length) user.addresses[0].isDefault = true;
   await user.save();
 
   res.status(200).json({ success: true, data: user.addresses });
@@ -178,8 +219,11 @@ exports.getWishlist = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/auth/wishlist/:productId
 // @access  Private
 exports.toggleWishlist = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
   const { productId } = req.params;
+  if (!mongoose.isValidObjectId(productId) || !(await Product.exists({ _id: productId }))) {
+    throw new ApiError('Product not found.', 404);
+  }
+  const user = await User.findById(req.user.id);
 
   const index = user.wishlist.findIndex((id) => id.toString() === productId);
 
@@ -197,10 +241,13 @@ exports.toggleWishlist = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/auth/forgot-password
 // @access  Public
 exports.forgotPassword = asyncHandler(async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
+  const generic = { success: true, message: 'If an account exists for that email, a reset link has been sent.' };
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const user = email ? await User.findOne({ email }) : null;
 
+  // Same response whether or not the account exists (no account enumeration).
   if (!user) {
-    throw new ApiError('No account found with that email address.', 404);
+    return res.status(200).json(generic);
   }
 
   const resetToken = user.getResetPasswordToken();
@@ -208,7 +255,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
 
   const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
   const html = `
-    <p>You requested a password reset for your account at Earthen & Co. Pottery.</p>
+    <p>You requested a password reset for your Charu Pottery account.</p>
     <p>Click the link below to set a new password. This link expires in 10 minutes.</p>
     <a href="${resetUrl}" target="_blank">${resetUrl}</a>
     <p>If you didn't request this, you can safely ignore this email.</p>
@@ -220,7 +267,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
       subject: 'Password Reset Request',
       html,
     });
-    res.status(200).json({ success: true, message: 'Reset email sent.' });
+    res.status(200).json(generic);
   } catch (error) {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -248,6 +295,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   }
 
   user.password = req.body.password;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
   await user.save();

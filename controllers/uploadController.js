@@ -4,6 +4,7 @@ const asyncHandler = require('express-async-handler');
 const cloudinary = require('../config/cloudinary');
 const ApiError = require('../utils/ApiError');
 const User = require('../models/User');
+const { storeLocal } = require('../services/mediaStorage');
 
 const AVATAR_DIR = path.join(__dirname, '..', 'uploads', 'avatars');
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
@@ -29,6 +30,12 @@ exports.uploadProductImages = asyncHandler(async (req, res) => {
     throw new ApiError('Please attach at least one image.', 400);
   }
 
+  // Verify real file type by content before sending anything to Cloudinary.
+  const { detectType } = require('../utils/fileSignature');
+  if (req.files.some((f) => detectType(f.buffer)?.kind !== 'image')) {
+    throw new ApiError('Unsupported or corrupted image file.', 400);
+  }
+
   const uploadPromises = req.files.map((file) =>
     streamUpload(file.buffer, 'pottery-ecommerce/products')
   );
@@ -51,14 +58,14 @@ exports.uploadAvatar = asyncHandler(async (req, res) => {
     throw new ApiError('Please attach an image.', 400);
   }
 
-  // Store locally (Cloudinary is not configured) and persist on the user
-  const ext = path.extname(req.file.originalname) || '.jpg';
-  const filename = `avatar-${req.user.id}-${Date.now()}${ext}`;
-  fs.writeFileSync(path.join(AVATAR_DIR, filename), req.file.buffer);
+  // Store locally after verifying the real file type (never trust the
+  // client's filename/extension), then persist on the user.
+  const stored = storeLocal(req.file.buffer, { folder: 'avatars', allow: ['image'], maxImageBytes: 3 * 1024 * 1024, prefix: 'avatar' });
+  const filename = stored.public_id;
 
   // Remove the previous locally-stored avatar file, if any
   const prev = req.user.avatar?.public_id;
-  if (prev && prev.startsWith('avatar-')) {
+  if (prev && /^avatar-[\w-]+\.(jpg|png|webp)$/.test(prev)) {
     fs.rm(path.join(AVATAR_DIR, prev), { force: true }, () => {});
   }
 

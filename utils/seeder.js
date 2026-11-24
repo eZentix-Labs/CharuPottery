@@ -13,6 +13,12 @@ const Category = require('../models/Category');
 const Product = require('../models/Product');
 
 const seed = async () => {
+  // DESTRUCTIVE (deletes products, categories and admin users): local DBs only.
+  const host = (process.env.MONGO_URI || '').replace(/^mongodb(\+srv)?:\/\/([^@]*@)?/, '').split(/[/:?,]/)[0];
+  if (!['localhost', '127.0.0.1', '::1'].includes(host) || process.env.NODE_ENV === 'production') {
+    console.error(`Refusing to seed: ${host || 'MONGO_URI'} is not a local development database.`);
+    process.exit(1);
+  }
   await connectDB();
 
   console.log('🧹 Clearing existing data...');

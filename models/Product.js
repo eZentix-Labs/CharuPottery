@@ -131,6 +131,13 @@ const productSchema = new mongoose.Schema(
       min: [0, 'Stock cannot be negative'],
       default: 0,
     },
+    // Units held for unpaid online checkouts (not available, not yet sold).
+    // Changed only by services/inventory.js together with an InventoryMovement.
+    reservedStock: {
+      type: Number,
+      min: [0, 'Reserved stock cannot be negative'],
+      default: 0,
+    },
     lowStockThreshold: {
       type: Number,
       default: 5,
@@ -207,5 +214,6 @@ productSchema.index({ name: 'text', description: 'text', tags: 'text' });
 productSchema.index({ category: 1, isActive: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ isFeatured: 1, isActive: 1 });
+productSchema.index({ isNewArrival: 1, isActive: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Product', productSchema);

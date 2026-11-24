@@ -28,6 +28,31 @@ const reviewSchema = new mongoose.Schema(
       maxlength: [1000, 'Review comment cannot exceed 1000 characters'],
     },
     images: [{ url: String, public_id: String }],
+    // Customer media (CP-CUST-013). Validated by content type on upload and
+    // shown publicly only when the review is approved.
+    media: [
+      {
+        url: String,
+        public_id: String,
+        kind: { type: String, enum: ['image', 'video'] },
+        mime: String,
+        size: Number,
+      },
+    ],
+    // Moderation (DEC-10). Reviews created before moderation existed have no
+    // status and are treated as approved.
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    moderatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    moderatedAt: Date,
+    moderationNote: { type: String, maxlength: 300 },
+    reports: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String, maxlength: 300 },
+        at: { type: Date, default: Date.now },
+      },
+    ],
+    reportCount: { type: Number, default: 0 },
     isVerifiedPurchase: {
       type: Boolean,
       default: false,
@@ -47,7 +72,7 @@ reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 reviewSchema.statics.recalculateProductRating = async function (productId) {
   const Product = mongoose.model('Product');
   const stats = await this.aggregate([
-    { $match: { product: productId } },
+    { $match: { product: productId, $or: [{ status: 'approved' }, { status: { $exists: false } }] } },
     {
       $group: {
         _id: '$product',
@@ -69,6 +94,10 @@ reviewSchema.statics.recalculateProductRating = async function (productId) {
     });
   }
 };
+
+reviewSchema.index({ status: 1, createdAt: -1 });
+
+reviewSchema.statics.PUBLIC_FILTER = { $or: [{ status: 'approved' }, { status: { $exists: false } }] };
 
 reviewSchema.post('save', function () {
   this.constructor.recalculateProductRating(this.product);

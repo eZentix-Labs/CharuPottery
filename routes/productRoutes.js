@@ -1,56 +1,37 @@
 const express = require('express');
-const router = express.Router();
-const {
-  getProducts,
-  getProduct,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  permanentlyDeleteProduct,
-  getFeaturedProducts,
-  getRelatedProducts,
-  updateStock,
-} = require('../controllers/productController');
+const c = require('../controllers/productController');
 const reviewRouter = require('./reviewRoutes');
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { protect, authorize, optionalAuth } = require('../middleware/authMiddleware');
 const { productValidation, validate } = require('../middleware/validators');
 const upload = require('../middleware/uploadMiddleware');
 const parseProductForm = require('../middleware/productFormMiddleware');
 
+const router = express.Router();
+const admin = [protect, authorize('admin')];
+
 // Nested route: /api/v1/products/:productId/reviews
 router.use('/:productId/reviews', reviewRouter);
 
-router.get('/featured', getFeaturedProducts);
-router.get('/:id/related', getRelatedProducts);
+router.get('/featured', c.getFeaturedProducts);
+router.get('/new-arrivals', c.getNewArrivals);
+router.get('/admin/all', ...admin, c.getAdminProducts);
+router.get('/:id/related', c.getRelatedProducts);
 
 router
   .route('/')
-  .get(getProducts)
-  .post(
-    protect,
-    authorize('admin'),
-    upload.array('images', 6),
-    parseProductForm,
-    productValidation,
-    validate,
-    createProduct
-  );
+  .get(c.getProducts)
+  .post(...admin, upload.array('images', 6), parseProductForm, productValidation, validate, c.createProduct);
 
-router
-  .route('/:idOrSlug')
-  .get(getProduct);
+router.get('/:idOrSlug', optionalAuth, c.getProduct);
 
 router
   .route('/:id')
-  .put(protect, authorize('admin'), upload.array('images', 6), parseProductForm, updateProduct)
-  .delete(protect, authorize('admin'), deleteProduct);
+  .put(...admin, upload.array('images', 6), parseProductForm, c.updateProduct)
+  .delete(...admin, c.deleteProduct);
 
-router.delete(
-  '/:id/permanent',
-  protect,
-  authorize('admin'),
-  permanentlyDeleteProduct
-);
-router.patch('/:id/stock', protect, authorize('admin'), updateStock);
+router.delete('/:id/permanent', ...admin, c.permanentlyDeleteProduct);
+router.patch('/:id/stock', ...admin, c.updateStock);
+router.post('/:id/stock-adjustments', ...admin, c.adjustStock);
+router.get('/:id/stock-movements', ...admin, c.getStockMovements);
 
 module.exports = router;

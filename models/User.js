@@ -28,7 +28,8 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
       match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+        // Accepts modern TLDs (.store, .online, …); the old pattern allowed only 2–3 letters.
+        /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[A-Za-z]{2,24}$/,
         'Please provide a valid email',
       ],
     },
@@ -69,6 +70,29 @@ const userSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
       select: false,
+    },
+    // Incremented on logout / password change to invalidate refresh tokens.
+    tokenVersion: { type: Number, default: 0 },
+    // Marketing consent (DEC-07). Logging in is NOT consent; this records an
+    // explicit opt-in with time and source, and any later opt-out.
+    marketingConsent: {
+      whatsapp: {
+        optedIn: { type: Boolean, default: false },
+        optedInAt: Date,
+        optedOutAt: Date,
+        source: String,
+      },
+      email: {
+        optedIn: { type: Boolean, default: false },
+        optedInAt: Date,
+        optedOutAt: Date,
+        source: String,
+      },
+    },
+    // Prime Collection: number of rewards already redeemed. Earned rewards are
+    // always recomputed from qualifying orders on the server.
+    loyalty: {
+      redeemedCount: { type: Number, default: 0, min: 0 },
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
