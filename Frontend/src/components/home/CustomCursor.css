@@ -1,0 +1,71 @@
+/* Potter's-wheel cursor (only mounted for fine pointers without reduced motion) */
+html.has-wheel-cursor, html.has-wheel-cursor body,
+html.has-wheel-cursor a, html.has-wheel-cursor button, html.has-wheel-cursor label,
+html.has-wheel-cursor select, html.has-wheel-cursor [role="button"], html.has-wheel-cursor [data-cursor] {
+  cursor: none;
+}
+html.has-wheel-cursor input, html.has-wheel-cursor textarea { cursor: text; }
+html.has-wheel-cursor input[type="checkbox"], html.has-wheel-cursor input[type="radio"],
+html.has-wheel-cursor input[type="submit"], html.has-wheel-cursor input[type="button"] { cursor: none; }
+
+.wheel-cursor-dot, .wheel-cursor-ring {
+  position: fixed; top: 0; left: 0; z-index: 9999;
+  pointer-events: none; opacity: 0;
+  transition: opacity .25s ease;
+  will-change: transform;
+}
+
+.wheel-cursor-dot {
+  width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  background: #B65A2F;
+  box-shadow: 0 0 0 2px rgba(250, 245, 239, .7);
+}
+
+.wheel-cursor-ring {
+  width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  display: flex; align-items: center; justify-content: center;
+}
+/* the spinning "wheel head": a dashed terracotta ring */
+.wheel-cursor-spin {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px dashed rgba(182, 90, 47, .85);
+  animation: wheelSpin 3.2s linear infinite;
+  transition: transform .35s cubic-bezier(.2, .7, .2, 1), background .3s ease, border-color .3s ease, border-style .3s ease;
+}
+.wheel-cursor-label {
+  position: relative; font: 600 10px/1 'Inter', system-ui, sans-serif;
+  letter-spacing: .16em; text-transform: uppercase; color: #2B1D14;
+  opacity: 0; transform: scale(.6);
+  transition: opacity .25s ease, transform .35s cubic-bezier(.2, .7, .2, 1);
+}
+
+/* hovering a link or button: the wheel opens up and spins faster */
+.wheel-cursor-ring[data-state="hover"] .wheel-cursor-spin {
+  transform: scale(1.55);
+  background: rgba(182, 90, 47, .08);
+  animation-duration: 1.4s;
+}
+/* labelled targets (product cards, the clay wheel…): solid cream disc + word */
+.wheel-cursor-ring[data-state="label"] .wheel-cursor-spin {
+  transform: scale(2.2);
+  background: #FAF5EF;
+  border-style: solid; border-color: #E9CDB6;
+  box-shadow: 0 10px 30px rgba(43, 29, 20, .18);
+  animation-play-state: paused;
+}
+.wheel-cursor-ring[data-state="label"] .wheel-cursor-label { opacity: 1; transform: scale(1); }
+/* text fields: get out of the way */
+.wheel-cursor-ring[data-state="text"] { opacity: 0 !important; }
+/* pressing squashes the clay */
+.wheel-cursor-ring.is-pressed .wheel-cursor-spin { transform: scale(.82, .7); }
+.wheel-cursor-ring.is-pressed[data-state="label"] .wheel-cursor-spin { transform: scale(1.9, 1.75); }
+
+@keyframes wheelSpin { to { rotate: 360deg; } }
+/* outline variant: keeps what's under the pointer visible (clay wheel) */
+.wheel-cursor-ring[data-state="outline"] .wheel-cursor-spin {
+  transform: scale(1.4); border-style: solid; border-color: rgba(250, 245, 239, .9);
+  box-shadow: 0 0 0 1px rgba(182, 90, 47, .6); animation-duration: 1s;
+}
+.wheel-cursor-ring[data-state="outline"] .wheel-cursor-label {
+  opacity: 1; transform: translateY(46px); color: var(--clay-dark, #96471F);
+}
