@@ -2,26 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { FiPackage, FiChevronRight } from 'react-icons/fi';
+import { formatPaise, orderTotalPaise } from '../utils/money';
+import { STATUS_BADGE, statusLabel, paymentLabel } from '../utils/orderStatus';
 import './MyOrdersPage.css';
-
-const STATUS_COLOR = {
-  Pending: 'badge-clay',
-  Processing: 'badge-clay',
-  Shipped: 'badge-success',
-  Delivered: 'badge-success',
-  Cancelled: 'badge-error',
-};
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
 
   useEffect(() => {
-    api.get('/orders/my-orders')
-      .then(({ data }) => setOrders(data.data || []))
-      .catch(() => {})
+    setLoading(true);
+    api.get('/orders/my-orders', { params: { page, limit: 10 } })
+      .then(({ data }) => { setOrders(data.data || []); setPages(data.pages || 1); setError(''); })
+      .catch(() => setError('Could not load your orders. Please refresh.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   if (loading) return <div className="page-loader"><div className="spinner" /></div>;
 
@@ -29,8 +27,9 @@ export default function MyOrdersPage() {
     <div className="myorders-page">
       <div className="container">
         <h1 className="myorders-title display">My Orders</h1>
+        {error && <p className="form-error">{error}</p>}
 
-        {orders.length === 0 ? (
+        {!error && orders.length === 0 ? (
           <div className="myorders-empty">
             <FiPackage size={52} color="var(--stone-light)" />
             <h2 className="display" style={{ fontSize: 26, marginTop: 16 }}>No orders yet</h2>
@@ -48,18 +47,25 @@ export default function MyOrdersPage() {
                     ))}
                   </div>
                   <div className="order-info">
-                    <p className="order-id">Order #{order._id.slice(-8).toUpperCase()}</p>
+                    <p className="order-id">{order.orderNumber || `Order #${order._id.slice(-8).toUpperCase()}`}</p>
                     <p className="order-date">{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     <p className="order-items-count">
-                      {order.orderItems?.length} item{order.orderItems?.length !== 1 ? 's' : ''} · ₹{order.totalPrice?.toLocaleString('en-IN')}
+                      {order.orderItems?.length} item{order.orderItems?.length !== 1 ? 's' : ''} · {formatPaise(orderTotalPaise(order))} · {paymentLabel(order)}
                     </p>
                   </div>
                 </div>
                 <div className="order-card-right">
-                  <span className={`badge ${STATUS_COLOR[order.orderStatus] || 'badge-clay'}`}>{order.orderStatus}</span>
+                  <span className={`badge ${STATUS_BADGE[order.orderStatus] || 'badge-clay'}`}>{statusLabel(order.orderStatus)}</span>
                   <FiChevronRight size={18} color="var(--stone-light)" />
                 </div>
               </Link>
+            ))}
+          </div>
+        )}
+        {pages > 1 && (
+          <div className="pagination" style={{ marginTop: 20 }}>
+            {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+              <button key={p} className={`page-btn${page === p ? ' active' : ''}`} onClick={() => setPage(p)} aria-current={page === p}>{p}</button>
             ))}
           </div>
         )}

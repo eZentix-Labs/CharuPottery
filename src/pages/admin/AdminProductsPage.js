@@ -17,9 +17,9 @@ export default function AdminProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 10, sort: '-createdAt' });
-      if (search) params.set('keyword', search);
-      const { data } = await api.get(`/products?${params}`);
+      const params = new URLSearchParams({ page, limit: 10 });
+      if (search) params.set('q', search);
+      const { data } = await api.get(`/products/admin/all?${params}`);
       setProducts(data.data || []);
       setTotalPages(data.pages || 1);
       setTotal(data.total || 0);
@@ -30,11 +30,11 @@ export default function AdminProductsPage() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Archive "${name}"? It will be hidden from the store (order history is kept).`)) return;
     setDeleting(id);
     try {
       await api.delete(`/products/${id}`);
-      toast.success('Product deleted');
+      toast.success('Product archived');
       fetchProducts();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete');

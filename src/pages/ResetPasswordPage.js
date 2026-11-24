@@ -13,7 +13,7 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirm) { toast.error('Passwords do not match'); return; }
-    if (form.password.length < 6) { toast.error('Password too short'); return; }
+    if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password)) { toast.error('Use at least 8 characters, including a letter and a number'); return; }
     setLoading(true);
     try {
       await api.put(`/auth/reset-password/${token}`, { password: form.password });
@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label className="form-label">New Password</label>
-            <input type="password" className="form-input" placeholder="Min. 6 characters" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input type="password" className="form-input" placeholder="Min. 8 characters, letter + number" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label">Confirm Password</label>

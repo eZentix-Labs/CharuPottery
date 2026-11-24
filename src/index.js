@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import './styles/mobile.css'; // mobile-only refinements; must load after App's styles
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

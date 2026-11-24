@@ -1,0 +1,47 @@
+/* Shared admin styles — distinct, denser hierarchy than the storefront, same brand tokens. */
+.adm-page { display: flex; flex-direction: column; gap: 20px; }
+.adm-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.adm-title { font-family: var(--ff-display); font-size: 26px; font-weight: 400; }
+.adm-sub { font-size: 13px; color: var(--stone-light); margin-top: 4px; }
+.adm-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 18px 20px; }
+.adm-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.adm-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.adm-grid-2 { display: grid; gap: 16px; grid-template-columns: 2fr 1fr; }
+@media (max-width: 1000px) { .adm-grid-2 { grid-template-columns: 1fr; } }
+.adm-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.adm-kpi { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 16px; }
+.adm-kpi-value { font-size: 22px; font-weight: 700; color: var(--ink); }
+.adm-kpi-label { font-size: 12px; color: var(--stone); margin-top: 2px; }
+.adm-kpi.warn .adm-kpi-value { color: #B45309; }
+.adm-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.adm-toolbar .form-input, .adm-toolbar select { max-width: 260px; font-size: 13px; padding: 9px 12px; }
+.adm-table-wrap { overflow-x: auto; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.adm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.adm-table th { text-align: left; font-weight: 600; color: var(--stone); padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--sand); white-space: nowrap; }
+.adm-table td { padding: 10px 12px; border-bottom: 1px solid var(--parchment); vertical-align: top; }
+.adm-table tr:last-child td { border-bottom: none; }
+.adm-table tr.clickable { cursor: pointer; }
+.adm-table tr.clickable:hover td { background: var(--cream); }
+.adm-empty { padding: 36px; text-align: center; color: var(--stone-light); }
+.adm-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--parchment); color: var(--brown); white-space: nowrap; }
+.adm-pill.ok { background: #E6F0DA; color: #3F5A1E; }
+.adm-pill.warn { background: #FDEBD3; color: #92400E; }
+.adm-pill.bad { background: #F9E0DA; color: #9B2C1A; }
+.adm-pill.info { background: #E3ECF7; color: #1E4E8C; }
+.adm-form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: end; }
+.adm-form .full { grid-column: 1 / -1; }
+.adm-form label { font-size: 12px; color: var(--stone); display: flex; flex-direction: column; gap: 4px; }
+.adm-form .form-input, .adm-form select, .adm-form textarea { font-size: 13px; padding: 9px 12px; }
+.adm-check { flex-direction: row !important; align-items: center; gap: 8px !important; font-size: 13px !important; color: var(--ink) !important; }
+.adm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-btn-sm { padding: 7px 12px !important; font-size: 12px !important; }
+.adm-danger { border-color: var(--error) !important; color: var(--error) !important; }
+.adm-kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 13px; }
+.adm-kv dt { color: var(--stone); }
+.adm-timeline { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.adm-timeline li { display: flex; gap: 10px; }
+.adm-timeline time { color: var(--stone-light); white-space: nowrap; font-size: 12px; min-width: 130px; }
+.adm-note { font-size: 12px; color: var(--stone); background: var(--sand); border-radius: var(--radius-sm); padding: 8px 12px; }
+.adm-pager { display: flex; gap: 6px; justify-content: flex-end; align-items: center; font-size: 13px; }
+.admin-auth { background: var(--ink); }
+@media (max-width: 700px) { .adm-kv { grid-template-columns: 1fr; } }

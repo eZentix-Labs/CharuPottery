@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { FiShoppingBag, FiHeart, FiUser, FiMenu, FiX, FiSearch, FiLogOut, FiPackage, FiSettings, FiHome, FiGrid } from 'react-icons/fi';
+import { FiShoppingBag, FiHeart, FiUser, FiMenu, FiX, FiSearch, FiLogOut, FiPackage, FiSettings, FiHome, FiGrid, FiBell } from 'react-icons/fi';
+import api from '../../api/axios';
 import './Navbar.css';
 
 const MESSAGES = [
-  '🚚 Free Shipping Above ₹999',
+  '💵 Cash on Delivery Available',
   '🏺 Handmade by Indian Artisans',
   '⭐ 20+ Years of Craftsmanship',
   '🪔 From Our Village Workshop to Your Home',
@@ -34,6 +35,14 @@ export default function Navbar() {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [msgIndex, setMsgIndex] = useState(0);
+  const [unread, setUnread] = useState(0);
+  const { pathname } = useLocation();
+
+  // Unread website notifications (offers, order updates); refreshed on navigation.
+  useEffect(() => {
+    if (!user) { setUnread(0); return; }
+    api.get('/account/notifications').then(({ data }) => setUnread(data.unread || 0)).catch(() => {});
+  }, [user, pathname]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -92,6 +101,12 @@ export default function Navbar() {
             {user && (
               <Link to="/wishlist" className="action-btn hide-mobile" aria-label="Wishlist">
                 <FiHeart size={19} />
+              </Link>
+            )}
+            {user && (
+              <Link to="/profile" state={{ tab: 'Notifications' }} className="action-btn cart-btn hide-mobile" aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}>
+                <FiBell size={19} />
+                {unread > 0 && <span className="cart-badge">{unread}</span>}
               </Link>
             )}
             <Link to="/cart" className="action-btn cart-btn" aria-label="Cart">

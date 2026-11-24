@@ -8,6 +8,8 @@ export function CartProvider({ children }) {
   const { user } = useAuth();
   const [cart, setCart] = useState(null);
   const [cartLoading, setCartLoading] = useState(false);
+  // Price/availability changes detected by the server since items were added
+  const [cartChanges, setCartChanges] = useState([]);
 
   const fetchCart = useCallback(async () => {
     if (!user) { setCart(null); return; }
@@ -15,6 +17,7 @@ export function CartProvider({ children }) {
     try {
       const { data } = await api.get('/cart');
       setCart(data.data);
+      setCartChanges(data.changes || []);
     } catch {
       setCart(null);
     } finally {
@@ -27,12 +30,14 @@ export function CartProvider({ children }) {
   const addToCart = async (productId, quantity = 1) => {
     const { data } = await api.post('/cart', { productId, quantity });
     setCart(data.data);
+    setCartChanges(data.changes || []);
     return data.data;
   };
 
   const updateCartItem = async (productId, quantity) => {
     const { data } = await api.put(`/cart/${productId}`, { quantity });
     setCart(data.data);
+    setCartChanges(data.changes || []);
   };
 
   const removeFromCart = async (productId) => {
@@ -46,10 +51,11 @@ export function CartProvider({ children }) {
   };
 
   const cartCount = cart?.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+  // Display-only estimate; checkout always uses the server quote.
   const cartTotal = cart?.items?.reduce((sum, i) => sum + (i.price * i.quantity), 0) || 0;
 
   return (
-    <CartContext.Provider value={{ cart, cartLoading, cartCount, cartTotal, addToCart, updateCartItem, removeFromCart, clearCart, fetchCart }}>
+    <CartContext.Provider value={{ cart, cartLoading, cartCount, cartTotal, cartChanges, addToCart, updateCartItem, removeFromCart, clearCart, fetchCart }}>
       {children}
     </CartContext.Provider>
   );

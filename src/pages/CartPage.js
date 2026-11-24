@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../api/axios';
+import { formatPaise } from '../utils/money';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import toast from 'react-hot-toast';
@@ -6,10 +8,17 @@ import { FiTrash2, FiPlus, FiMinus, FiShoppingBag, FiArrowRight } from 'react-ic
 import './CartPage.css';
 
 export default function CartPage() {
-  const { cart, cartLoading, updateCartItem, removeFromCart, clearCart, cartTotal } = useCart();
+  const { cart, cartLoading, updateCartItem, removeFromCart, clearCart, cartChanges } = useCart();
   const navigate = useNavigate();
+  const [quote, setQuote] = useState(null);
 
   const items = cart?.items || [];
+
+  // Totals always come from the server (current prices, tax, shipping).
+  useEffect(() => {
+    if (!items.length) { setQuote(null); return; }
+    api.get('/orders/checkout/quote').then(({ data }) => setQuote(data.data)).catch(() => setQuote(null));
+  }, [cart]);
 
   const handleQty = async (productId, qty) => {
     if (qty < 1) return;
@@ -27,9 +36,6 @@ export default function CartPage() {
     catch { toast.error('Failed to clear cart'); }
   };
 
-  const tax = Math.round(cartTotal * 0.05 * 100) / 100;
-  const shipping = cartTotal > 2000 ? 0 : 99;
-  const total = cartTotal + tax + shipping;
 
   if (cartLoading) return <div className="page-loader"><div className="spinner" /></div>;
 
@@ -37,6 +43,17 @@ export default function CartPage() {
     <div className="cart-page">
       <div className="container">
         <h1 className="cart-title display">Your Cart</h1>
+        {cartChanges?.length > 0 && (
+          <div className="cart-changes" role="status">
+            {cartChanges.map((c) => (
+              <p key={`${c.productId}-${c.type}`}>
+                {c.type === 'PRICE_CHANGED' && <>The price of <strong>{c.name}</strong> changed from ₹{c.oldPrice.toLocaleString('en-IN')} to ₹{c.newPrice.toLocaleString('en-IN')}.</>}
+                {c.type === 'UNAVAILABLE' && <><strong>{c.name}</strong> is no longer available — please remove it.</>}
+                {c.type === 'LOW_STOCK' && <>Only {c.available} of <strong>{c.name}</strong> left — please reduce the quantity.</>}
+              </p>
+            ))}
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="cart-empty">
@@ -84,19 +101,24 @@ export default function CartPage() {
             <div className="cart-summary">
               <h3 className="summary-title">Order Summary</h3>
               <div className="summary-rows">
-                <div className="summary-row"><span>Subtotal</span><span>₹{cartTotal.toLocaleString('en-IN')}</span></div>
-                <div className="summary-row"><span>Tax (5% GST)</span><span>₹{tax.toLocaleString('en-IN')}</span></div>
-                <div className="summary-row">
-                  <span>Shipping</span>
-                  <span>{shipping === 0 ? <span style={{ color: 'var(--success)' }}>Free</span> : `₹${shipping}`}</span>
-                </div>
-                {cartTotal < 2000 && (
-                  <p className="free-shipping-hint">Add ₹{(2000 - cartTotal).toLocaleString('en-IN')} more for free shipping</p>
+                {!quote ? <div className="spinner" /> : (
+                  <>
+                    <div className="summary-row"><span>Subtotal</span><span>{formatPaise(quote.itemsPaise)}</span></div>
+                    <div className="summary-row"><span>Tax ({quote.taxRateBasisPoints / 100}%)</span><span>{formatPaise(quote.taxPaise)}</span></div>
+                    <div className="summary-row">
+                      <span>Shipping</span>
+                      <span>{quote.shippingPaise === 0 ? <span style={{ color: 'var(--success)' }}>Free</span> : formatPaise(quote.shippingPaise)}</span>
+                    </div>
+                    {quote.shippingPaise > 0 && quote.freeShippingAbovePaise > quote.itemsPaise && (
+                      <p className="free-shipping-hint">Add {formatPaise(quote.freeShippingAbovePaise - quote.itemsPaise + 100)} more for free shipping</p>
+                    )}
+                    <hr className="divider" />
+                    <div className="summary-row total"><span>Total</span><span>{formatPaise(quote.totalPaise)}</span></div>
+                    {quote.problems?.length > 0 && <p className="form-error">{quote.problems[0].message}</p>}
+                  </>
                 )}
-                <hr className="divider" />
-                <div className="summary-row total"><span>Total</span><span>₹{total.toLocaleString('en-IN')}</span></div>
               </div>
-              <button className="btn btn-primary checkout-btn" onClick={() => navigate('/checkout')}>
+              <button className="btn btn-primary checkout-btn" onClick={() => navigate('/checkout')} disabled={!quote || quote.problems?.length > 0}>
                 Proceed to Checkout <FiArrowRight size={16} />
               </button>
               <Link to="/products" className="btn btn-ghost continue-btn">Continue Shopping</Link>

@@ -120,6 +120,10 @@ export default function ProductsPage() {
                   <FiX size={13} /> Clear all
                 </button>
               )}
+              {/* mobile drawer only (hidden on desktop via styles/mobile.css) */}
+              <button type="button" className="filters-close" onClick={() => setFilterOpen(false)} aria-label="Close filters">
+                <FiX size={20} />
+              </button>
             </div>
 
             {/* Category */}
@@ -198,6 +202,9 @@ export default function ProductsPage() {
                 </label>
               </div>
             </FilterGroup>
+            <button type="button" className="btn btn-primary filters-apply" onClick={() => setFilterOpen(false)}>
+              Show {loading ? '' : `${total} `}results
+            </button>
           </aside>
 
           {/* Product grid */}

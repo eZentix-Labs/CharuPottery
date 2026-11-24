@@ -31,6 +31,8 @@ export default function AdminProductFormPage() {
   const [newImagePreviews, setNewImagePreviews] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+  // Stock as loaded: sent as expectedStock so the server can refuse a stale overwrite.
+  const [loadedStock, setLoadedStock] = useState(null);
 
   useEffect(() => {
     api.get('/categories').then(({ data }) => setCategories(data.data || []));
@@ -44,7 +46,7 @@ export default function AdminProductFormPage() {
         setForm({
           name: p.name || '', description: p.description || '', shortDescription: p.shortDescription || '',
           price: p.price || '', discountPrice: p.discountPrice || '',
-          stock: p.stock || '', category: p.category?._id || '',
+          stock: p.stock ?? '', category: p.category?._id || '',
           clayType: p.clayType || '', technique: p.technique || '',
           glazeType: p.glazeType || '', firingTechnique: p.firingTechnique || '',
           careInstructions: p.careInstructions || '', processingTime: p.processingTime || '5-7 business days',
@@ -58,6 +60,7 @@ export default function AdminProductFormPage() {
           'artisan.bio': p.artisan?.bio || '',
         });
         setImages(p.images || []);
+        setLoadedStock(p.stock ?? 0);
       })
       .catch(() => toast.error('Failed to load product'))
       .finally(() => setLoading(false));
@@ -80,7 +83,8 @@ export default function AdminProductFormPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.price || !form.stock) { toast.error('Name, price and stock are required'); return; }
+    if (!form.name || form.price === '' || form.stock === '') { toast.error('Name, price and stock are required'); return; }
+    if (Number(form.stock) < 0 || !Number.isInteger(Number(form.stock))) { toast.error('Stock must be a whole number of 0 or more'); return; }
     if (!form.description) { toast.error('Full description is required'); return; }
     if (!form.category) { toast.error('Please select a category'); return; }
     setSaving(true);
@@ -99,6 +103,9 @@ export default function AdminProductFormPage() {
       ['dimensions.height', 'dimensions.width', 'dimensions.diameter', 'dimensions.weight',
        'artisan.name', 'artisan.location', 'artisan.bio']
         .forEach((k) => { if (form[k]) formData.append(k, form[k]); });
+
+      if (isEdit && loadedStock !== null) formData.append('expectedStock', loadedStock);
+      if (isEdit && form.discountPrice === '') formData.append('discountPrice', '');
 
       // Existing images to keep
       formData.append('existingImages', JSON.stringify(images));

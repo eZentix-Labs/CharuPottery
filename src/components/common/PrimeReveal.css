@@ -1,0 +1,7 @@
+.prime-reveal { position: relative; width: 100%; max-width: 420px; min-height: 92px; margin: 16px auto 0; border-radius: var(--radius-md); border: 1px dashed var(--clay); background: var(--sand); color: var(--ink); padding: 18px; font-size: 14px; text-align: center; overflow: hidden; }
+.prime-reveal-front, .prime-reveal-back { display: block; transition: opacity .4s ease, transform .4s ease; }
+.prime-reveal-back { position: absolute; inset: 0; padding: 18px; opacity: 0; transform: translateY(8px); display: flex; align-items: center; justify-content: center; }
+.prime-reveal.open .prime-reveal-front { opacity: 0; transform: translateY(-8px); }
+.prime-reveal.open .prime-reveal-back { opacity: 1; transform: none; }
+.prime-reveal-front { font-weight: 600; color: var(--clay-dark); }
+@media (prefers-reduced-motion: reduce) { .prime-reveal-front, .prime-reveal-back { transition: none; } }

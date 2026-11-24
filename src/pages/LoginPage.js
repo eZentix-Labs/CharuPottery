@@ -28,7 +28,8 @@ export default function LoginPage() {
     try {
       const user = await login(form.email, form.password);
       toast.success(`Welcome back, ${user.name}!`);
-      navigate(user.role === 'admin' ? '/admin' : from, { replace: true });
+      // Admins use the separate admin app; the storefront login keeps them on the store.
+      navigate(from, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {

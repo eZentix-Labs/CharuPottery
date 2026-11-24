@@ -64,3 +64,10 @@
   .addr-form-grid { grid-template-columns: 1fr; }
   .addr-form-grid .span2 { grid-column: 1; }
 }
+
+/* ── Prime Collection, notifications, preferences ──────────── */
+.prime-bar { height: 10px; border-radius: 999px; background: var(--parchment); overflow: hidden; margin: 16px 0 8px; }
+.prime-bar span { display: block; height: 100%; background: var(--clay); border-radius: 999px; transition: width .4s ease; }
+.prime-available { margin-top: 14px; padding: 14px; border-radius: var(--radius-sm); background: var(--sand); border: 1px dashed var(--clay); color: var(--clay-dark); font-weight: 600; }
+.prime-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin-top: 14px; cursor: pointer; }
+.addr-item.unread { border-left: 3px solid var(--clay); }

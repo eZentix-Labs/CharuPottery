@@ -114,3 +114,12 @@
   .steps-bar { gap: 4px; }
   .step-label { display: none; }
 }
+
+/* ── Coupons, Prime reward, price-change notice ─────────────── */
+.checkout-extras { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.coupon-row { display: flex; gap: 8px; }
+.coupon-row .form-input { flex: 1; text-transform: uppercase; }
+.coupon-applied { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--success); border-radius: var(--radius-sm); font-size: 14px; color: var(--success); }
+.prime-toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--sand); border: 1px solid var(--line); cursor: pointer; }
+.price-notice { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; margin-bottom: 16px; border-radius: var(--radius-sm); background: #FFF4E5; border: 1px solid #F0C27A; color: var(--brown); font-size: 14px; }
+.price-changed { color: var(--clay-dark); font-weight: 600; }

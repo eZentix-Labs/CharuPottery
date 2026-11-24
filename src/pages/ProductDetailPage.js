@@ -22,6 +22,8 @@ export default function ProductDetailPage() {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewFiles, setReviewFiles] = useState([]);
+  const [myReview, setMyReview] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -36,10 +38,13 @@ export default function ProductDetailPage() {
         ]);
         setRelated(relRes.data.data || []);
         setReviews(revRes.data.data || []);
+        if (user) {
+          api.get(`/products/${data.data._id}/reviews/mine`).then((r) => setMyReview(r.data.data)).catch(() => {});
+        }
       } catch { } finally { setLoading(false); }
     };
     load();
-  }, [slug]);
+  }, [slug, user]);
 
   const handleAddToCart = async () => {
     if (!user) { toast.error('Please sign in'); return; }
@@ -64,17 +69,29 @@ export default function ProductDetailPage() {
     if (!user) { toast.error('Please sign in to leave a review'); return; }
     setReviewSubmitting(true);
     try {
-      await api.post(`/products/${product._id}/reviews`, { rating: reviewRating, comment: reviewText });
-      toast.success('Review submitted!');
+      const fd = new FormData();
+      fd.append('rating', reviewRating);
+      fd.append('comment', reviewText);
+      reviewFiles.forEach((f) => fd.append('media', f));
+      const { data: created } = await api.post(`/products/${product._id}/reviews`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(created.message || 'Thank you! Your review will appear after moderation.');
+      setMyReview(created.data);
       setReviewText('');
       setReviewRating(5);
-      const { data } = await api.get(`/products/${product._id}/reviews`);
-      setReviews(data.data || []);
+      setReviewFiles([]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit review');
     } finally {
       setReviewSubmitting(false);
     }
+  };
+
+  // Client-side checks mirror the server limits (the server re-validates by file content).
+  const pickReviewFiles = (e) => {
+    const files = Array.from(e.target.files || []).slice(0, 4);
+    const bad = files.find((f) => (f.type.startsWith('video/') ? f.size > 25 * 1048576 : f.size > 5 * 1048576));
+    if (bad) { toast.error(`${bad.name} is too large (images ≤ 5 MB, videos ≤ 25 MB)`); e.target.value = ''; return; }
+    setReviewFiles(files);
   };
 
   if (loading) return <div className="page-loader"><div className="spinner" /></div>;
@@ -256,7 +273,15 @@ export default function ProductDetailPage() {
           {tab === 'reviews' && (
             <div className="tab-content">
               {/* Review form */}
-              {user && (
+              {user && myReview && (
+                <p className="review-pending-note">
+                  {myReview.status === 'pending' && 'Thanks for your review — it will appear here once our team has checked it.'}
+                  {myReview.status === 'rejected' && 'Your review was not published as it did not meet our review guidelines.'}
+                  {(myReview.status === 'approved' || !myReview.status) && 'You have reviewed this piece. Thank you!'}
+                </p>
+              )}
+              {!user && <p className="review-pending-note"><Link to="/login">Sign in</Link> to write a review.</p>}
+              {user && !myReview && (
                 <form onSubmit={handleReviewSubmit} className="review-form">
                   <h4 className="review-form-title">Leave a Review</h4>
                   <div className="star-select">
@@ -271,7 +296,12 @@ export default function ProductDetailPage() {
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
                     required
+                    minLength={3}
+                    maxLength={1000}
                   />
+                  <label className="form-label" htmlFor="review-media">Add photos or a short video (optional, up to 4)</label>
+                  <input id="review-media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple onChange={pickReviewFiles} />
+                  {reviewFiles.length > 0 && <p className="review-date">{reviewFiles.map((f) => f.name).join(', ')}</p>}
                   <button className="btn btn-primary" type="submit" disabled={reviewSubmitting}>
                     {reviewSubmitting ? 'Submitting…' : 'Submit Review'}
                   </button>
@@ -285,11 +315,19 @@ export default function ProductDetailPage() {
                   {reviews.map((r) => (
                     <div key={r._id} className="review-card">
                       <div className="review-header">
-                        <div className="review-user">{r.user?.name || 'Anonymous'}</div>
+                        <div className="review-user">{r.user?.name || 'Anonymous'}{r.isVerifiedPurchase && <span className="verified-badge">Verified purchase</span>}</div>
                         <div className="review-stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
                         <div className="review-date">{new Date(r.createdAt).toLocaleDateString('en-IN')}</div>
                       </div>
+                      {r.title && <p className="review-user">{r.title}</p>}
                       <p className="review-comment">{r.comment}</p>
+                      {r.media?.length > 0 && (
+                        <div className="review-media">
+                          {r.media.map((m) => (m.kind === 'video'
+                            ? <video key={m.url} src={m.url} controls preload="metadata" />
+                            : <img key={m.url} src={m.url} alt={`Photo from ${r.user?.name || 'a customer'}`} loading="lazy" />))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

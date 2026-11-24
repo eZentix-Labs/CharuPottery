@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+// Local dev: '/api/v1' is proxied to localhost:5000 (see package.json "proxy").
+// Production builds must set REACT_APP_API_URL, e.g. https://<backend-host>/api/v1
+export const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+
 const api = axios.create({
-  // baseURL: '/api/v1',
-   baseURL: 'https://charu-pottery-website-backend.onrender.com/api/v1',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -37,7 +40,7 @@ api.interceptors.response.use(
       original._retry = true;
       isRefreshing = true;
       try {
-        const { data } = await axios.post('/api/v1/auth/refresh-token', {}, { withCredentials: true });
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {}, { withCredentials: true });
         const newToken = data.accessToken;
         localStorage.setItem('accessToken', newToken);
         queue.forEach((p) => p.resolve(newToken));
