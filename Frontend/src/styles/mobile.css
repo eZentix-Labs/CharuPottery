@@ -12,7 +12,7 @@
    ───────────────────────────────────────────────────────────── */
 
 /* Mobile-only controls added to the markup: never shown on desktop */
-.filters-close, .filters-apply { display: none; }
+.filters-close, .filters-apply, .contact-page .c-quick { display: none; }
 
 /* ══════════════════════════ ≤ 860px ══════════════════════════ */
 @media (max-width: 860px) {
@@ -283,8 +283,70 @@
   .logo-tag { font-size: 7.5px; letter-spacing: .16em; }
   .logo-mark svg { width: 26px; height: 26px; }
   .action-btn { width: 36px; height: 36px; }
-  .contact-page .channel-grid { grid-template-columns: minmax(0, 1fr); }
   .contact-page .channel-card { overflow-wrap: anywhere; }
+}
+
+/* ═══════════════════════ Contact page ≤ 860px ═══════════════════════ */
+@media (max-width: 860px) {
+  .contact-page .wrap { padding: 0 20px; }
+  .contact-page .hero-c { padding: 36px 0 22px; }
+  .contact-page .hero-c .tagline { font-size: 15.5px; margin-bottom: 4px; }
+  .contact-page .hero-c h1 { font-size: 36px; margin: 8px 0 12px; }
+  .contact-page .hero-c p { font-size: 15px; }
+
+  /* one-tap actions under the heading */
+  .contact-page .c-quick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 26px; }
+  .contact-page .c-quick a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    min-height: 82px; padding: 12px 6px; border-radius: 16px;
+    background: var(--c-cream2); border: 1px solid var(--c-line);
+    color: var(--c-ink); font-size: 13px; font-weight: 600; text-decoration: none;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .contact-page .c-quick a:active { transform: scale(.96); background: #F1E7D6; }
+  .contact-page .c-quick svg { width: 24px; height: 24px; fill: var(--c-terra); }
+  .contact-page .c-quick .c-quick-wa { background: var(--c-wa); border-color: var(--c-wa); color: #fff; }
+  .contact-page .c-quick .c-quick-wa svg { fill: #fff; }
+
+  /* WhatsApp panel: stacked, full-width button */
+  .contact-page .wa-panel { flex-direction: column; text-align: center; gap: 18px; padding: 30px 20px 26px; margin: 0 0 44px; border-radius: 20px; }
+  .contact-page .wa-icon { width: 58px; height: 58px; }
+  .contact-page .wa-text { min-width: 0; }
+  .contact-page .wa-text h2 { font-size: 23px; }
+  .contact-page .wa-text p { font-size: 14px; margin: 0 auto 18px; }
+  .contact-page .wa-btn { width: 100%; justify-content: center; padding: 15px 20px; }
+  .contact-page .wa-meta { flex-direction: column; align-items: center; gap: 6px; }
+
+  .contact-page .section-label { margin-bottom: 18px; }
+  .contact-page .section-label h2 { font-size: 23px; }
+  .contact-page .channel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 48px; }
+
+  /* FAQ: comfortable tap rows */
+  .contact-page .faq { margin-bottom: 48px; }
+  .contact-page details { padding: 0; }
+  .contact-page summary { min-height: 56px; padding: 14px 0; font-size: 16.5px; line-height: 1.35; }
+  .contact-page summary::after { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: rgba(193, 96, 60, .1); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .contact-page details p { margin: 0 0 16px; font-size: 14.5px; }
+
+  /* Workshop + map */
+  .contact-page .form-section { grid-template-columns: minmax(0, 1fr); gap: 22px; margin-bottom: 48px; }
+  .contact-page .form-side p { max-width: none; }
+  .contact-page .form-side .hours { margin-top: 18px; padding-top: 16px; }
+  .contact-page .map-embed, .contact-page .map-embed iframe { min-height: 260px; border-radius: 16px; }
+  .contact-page .map-link { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+/* Contact page — phones: channels become full-width tappable rows */
+@media (max-width: 640px) {
+  .contact-page .hero-c h1 { font-size: 32px; }
+  .contact-page .channel-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .contact-page .channel-card {
+    display: grid; grid-template-columns: 42px minmax(0, 1fr); column-gap: 14px; align-items: start;
+    padding: 16px; border-radius: 16px;
+  }
+  .contact-page .channel-card .ic { grid-row: span 2; width: 42px; height: 42px; margin: 0; }
+  .contact-page .channel-card h3 { margin: 2px 0 2px; }
+  .contact-page .channel-card p { font-size: 13.5px; overflow-wrap: anywhere; }
 }
 
 /* ═══════════ Touch screens (no hover) up to tablet width ═══════════ */
