@@ -148,10 +148,33 @@
   .sp-n { font-size: 54px; margin-bottom: 8px; }
   .sp-text h3 { font-size: 26px; margin-bottom: 8px; }
   .sp-text p { font-size: 14.5px; line-height: 1.7; }
-  .sp-head::after {
+  .sp:not(.is-pinned) .sp-head::after {
     content: 'Swipe  →'; width: 100%;
     font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: rgba(233, 205, 182, .7);
   }
+
+  /* Pinned (animated) version on phones: same scroll-linked slide as
+     desktop, laid out as stacked cards that fit one screen. svh keeps the
+     sticky frame steady while the mobile address bar shows/hides. */
+  /* centre the cards between the fixed header (60px) and bottom nav (62px) */
+  .sp.is-pinned .sp-sticky {
+    height: 100vh; height: 100svh; justify-content: center;
+    padding: 60px 0 calc(62px + env(safe-area-inset-bottom));
+  }
+  .sp.is-pinned .sp-head { margin-bottom: 18px; gap: 10px 16px; }
+  .sp.is-pinned .sp-head .hp-title { font-size: 32px; }
+  .sp.is-pinned .sp-bar { min-width: 90px; margin-bottom: 10px; }
+  .sp.is-pinned .sp-track { gap: 16px; padding: 0 20px; }
+  .sp.is-pinned .sp-panel {
+    flex: 0 0 min(84vw, 420px);
+    grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start;
+  }
+  /* spacer so the strip ends with the same 20px gutter it starts with (gap 16 + 4) */
+  .sp.is-pinned .sp-track::after { content: ''; flex: 0 0 4px; }
+  .sp.is-pinned .sp-media { aspect-ratio: auto; height: min(40svh, 62vw); border-radius: 14px; }
+  .sp.is-pinned .sp-n { font-size: 44px; margin-bottom: 4px; }
+  .sp.is-pinned .sp-text h3 { font-size: 24px; margin-bottom: 6px; }
+  .sp.is-pinned .sp-text p { font-size: 14px; line-height: 1.6; max-width: none; }
 
   /* Interactive clay wheel: leave side gutters so a scrolling thumb
      isn't captured by the canvas */

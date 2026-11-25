@@ -4,15 +4,17 @@ import useMotionPrefs from '../../hooks/useMotionPrefs';
 /**
  * "From clay to kiln" — a pinned section whose panels slide horizontally
  * as you scroll down (desktop). Each panel's photo has inner parallax.
- * On narrow screens or with reduced motion it becomes a normal vertical
- * list, so nothing is hidden and scrolling never feels hijacked.
+ * Phones get the same scroll-linked effect with a shorter scroll distance
+ * per step (layout in styles/mobile.css). With reduced motion it falls back
+ * to a static list (a swipe strip on phones), so nothing is hidden.
  */
 export default function ScrollProcess({ steps }) {
   const { reducedMotion } = useMotionPrefs();
   const outer = useRef(null);
   const track = useRef(null);
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth > 900);
-  const pinned = wide && !reducedMotion;
+  const pinned = !reducedMotion;
+  const vhPerStep = wide ? 70 : 55;
 
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth > 900);
@@ -51,7 +53,7 @@ export default function ScrollProcess({ steps }) {
     <section
       ref={outer}
       className={`sp${pinned ? ' is-pinned' : ''}`}
-      style={pinned ? { height: `${100 + steps.length * 70}vh` } : undefined}
+      style={pinned ? { height: `${100 + steps.length * vhPerStep}vh` } : undefined}
       aria-labelledby="sp-title"
     >
       <div className="sp-sticky">
