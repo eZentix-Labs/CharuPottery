@@ -1,6 +1,6 @@
 # Vercel — Frontend Setup
 
-Status: **draft, not yet applied.** Requires `Frontend/vercel.json` (proposal in `deployment-audit.md` §7) for media and deep links.
+Status: **configured locally, not deployed.** `Frontend/vercel.json` was created on 2026-11-25 for the live API `https://charupottery.onrender.com` (uncommitted).
 
 ## 1. Project settings
 
@@ -16,58 +16,87 @@ Status: **draft, not yet applied.** Requires `Frontend/vercel.json` (proposal in
 
 Vercel sets `CI=true`, which turns ESLint warnings into build errors. A local build with `CI=true` compiled with **no warnings** on 2026-11-25.
 
-## 2. Environment variables
+## 2. Environment variables (exact production configuration)
 
-This is **Create React App, not Vite** — use the `REACT_APP_` prefix. `VITE_` variables would be ignored.
+This is **Create React App, not Vite**, so use the `REACT_APP_` prefix; `VITE_` variables would be ignored. Values are inlined at **build time**: after changing one you must **redeploy**. They are public (anyone can read them in the browser bundle), so never put secrets here.
 
-CRA inlines these at **build time**. After changing one, you must **redeploy**; a restart doesn't pick it up. They are public: anyone can read them in the browser bundle, so never put secrets here.
+Set these in Vercel → Project → Settings → Environment Variables → **Production**:
 
-| Name | Production value | Notes |
+| Name | Value | Derived from |
 |---|---|---|
-| `REACT_APP_API_URL` | `https://api.<your-domain>/api/v1` | **Required.** Without it, requests go to `/api/v1` on the Vercel domain and fail. No trailing slash |
-| `REACT_APP_APP_TARGET` | `all` | `all` = storefront `/` + admin `/admin` in one deployment (simplest). `storefront` / `admin` for split deployments |
-| `REACT_APP_ADMIN_URL` | *(only with `storefront`)* | Where `/admin` redirects on a storefront-only build |
-| `REACT_APP_STOREFRONT_URL` | *(only with `admin`)* | "Back to store" link in the admin layout; defaults to `/` |
+| `REACT_APP_API_URL` | `https://charupottery.onrender.com/api/v1` | `src/api/axios.js` → `process.env.REACT_APP_API_URL || '/api/v1'`. No trailing slash |
+| `REACT_APP_APP_TARGET` | `all` | `src/App.js`: `all` (also the default when unset) serves the storefront at `/` and the admin app at `/admin/*` from one deployment. Set it explicitly so the intent is visible |
+| `GENERATE_SOURCEMAP` | `false` | Recommended, not required. CRA publishes `.map` files by default, which exposes the original source to anyone |
 
-Set them for the **Production** environment. For **Preview** deployments, either point them at a staging API or accept that previews can't call the production API (CORS blocks unlisted origins).
+**Do not set:**
+- `REACT_APP_ADMIN_URL`. It is read only by `ExternalAdminRedirect`, which is used only when `REACT_APP_APP_TARGET=storefront`. With `all`, `/admin` is served by this same deployment.
+- `REACT_APP_STOREFRONT_URL`. It is read only by `AdminLayout.js` for the "View store" link, which defaults to `/`. With `all`, `/` is the storefront, so the default is correct.
 
-## 3. Production API URL — avoiding localhost
+**Preview deployments:** previews get their own `*.vercel.app` origins, which the API does not allow (CORS). Either leave previews without API access or add a staging backend. Do not add wildcard CORS.
 
-- `package.json` `"proxy": "http://localhost:5000"` is a **dev-server-only** setting and is not used by `react-scripts build`.
-- The only API base is `process.env.REACT_APP_API_URL || '/api/v1'`. A test build with the variable set contained **no** `localhost` strings.
-- **Verify after deploy:** browser DevTools → Network: all API calls go to `https://api.<your-domain>/api/v1/...`.
+## 3. Production API URL — verified
 
-## 4. Domains and cookies (blocker B1)
+- A production build with the value above contains `https://charupottery.onrender.com/api/v1` exactly once in `main.*.js`, and **no** `localhost` in any shipped JS. The only `localhost` text is a code comment inside the `.map` file, which is another reason for `GENERATE_SOURCEMAP=false`.
+- `package.json` `"proxy": "http://localhost:5000"` is used only by the dev server (`npm start`), never by `npm run build`.
 
-Login uses an httpOnly refresh cookie set with `SameSite=Strict`. It only reaches the API when the storefront and API are on the **same site**:
+## 4. Render settings this frontend depends on
 
-| Storefront | API | Sessions |
+| Render env var | Required value | Current state (probed 2026-11-25) |
 |---|---|---|
-| `www.<domain>` | `api.<domain>` | ✅ work |
-| `<project>.vercel.app` | `<service>.onrender.com` | ❌ users logged out ~15 min after login |
+| `CLIENT_URL` | The exact Vercel production origin, e.g. `https://<project>.vercel.app` (comma-separate if adding a custom domain later; no trailing slash) | ❌ **The API currently only allows `http://localhost:3000`**: either `CLIENT_URL` is unset or it is set to localhost. Until it's fixed, **every API call from Vercel is blocked by CORS** |
+| `PUBLIC_STOREFRONT_URL` | The same storefront origin | Needed only before PhonePe is enabled (payment redirects). COD works without it |
+| `NODE_ENV` | `production` | Enables `Secure` cookies |
 
-Add the custom domain in Vercel → Project → Domains, and the API subdomain on Render.
+`ADMIN_URL` is **not** needed, because the admin app is served from the same origin as the storefront.
 
-## 5. SPA routing and media (proposed `Frontend/vercel.json`)
+## 5. Cross-site cookie limitation (blocker B1, still open)
+
+`onrender.com` and `vercel.app` are both on the Public Suffix List. So `charupottery.onrender.com` is a **different site** from any `*.vercel.app` origin, and also from any custom storefront domain. The refresh cookie is `HttpOnly; Secure; SameSite=Strict`. Browsers neither store nor send a Strict cookie on these cross-site API calls, and Safari and Firefox block third-party cookies anyway.
+
+What happens in practice:
+
+| Flow | Works? |
+|---|---|
+| Register / login | ✅ The access token comes back in the JSON body and is sent as `Authorization: Bearer` |
+| Browsing, cart, checkout, my orders, admin pages | ✅ while the access token is valid (`JWT_EXPIRE`, default 15 min) |
+| Silent session refresh (`/auth/refresh-token`) | ❌ No cookie is sent, so the refresh returns 401, the token is cleared, and **the user is effectively logged out when the access token expires**. A cart in progress needs a re-login |
+| Logout | ✅ (the server-side `tokenVersion` bump does not depend on the cookie) |
+
+Options, none applied:
+1. **Recommended, no code change:** custom domains on one registrable domain. For example `www.<domain>` (Vercel) and `api.<domain>` (Render custom domain), with `REACT_APP_API_URL=https://api.<domain>/api/v1` and `CLIENT_URL=https://www.<domain>`. Same-site, so Strict cookies work unchanged.
+2. Proxy `/api` through Vercel (same-origin). It's config only, but the API would then see Vercel's IPs: with `trust proxy 1`, all users would share the 300/15 min API and 20/15 min auth rate limits. That would need a code change to the proxy-trust setting. Not recommended.
+3. Change the cookie to `SameSite=None`. This is an **authentication change that weakens CSRF protection**, still fails under third-party-cookie blocking, and needs explicit approval. Not recommended.
+
+Raising `JWT_EXPIRE` would hide the symptom but lengthens the lifetime of a stolen token. Don't do it without a security decision.
+
+## 6. SPA routing and media — `Frontend/vercel.json` (created)
 
 ```json
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/uploads/:path*", "destination": "https://<RENDER_API_HOST>/uploads/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://charupottery.onrender.com/uploads/:path*" },
     { "source": "/((?!static/|uploads/|api/).*)", "destination": "/index.html" }
   ]
 }
 ```
 
-- **Rule 1:** product, review and avatar images are stored as `/uploads/...` paths. This rule proxies them to the backend. Without it, every uploaded image 404s on the storefront.
-- **Rule 2:** deep links such as `/products/<slug>`, `/my-orders`, `/admin/orders` load the React app instead of a 404. Real files in `build/` are served first.
+Vercel serves real files from `build/` first, then applies rewrites top-to-bottom; the first match wins.
 
-- `api/` is excluded so a misconfigured build (missing `REACT_APP_API_URL`) gets a clear 404, not HTML with status 200. `static/` is excluded so a stale hashed chunk returns 404 and doesn't trigger a confusing `ChunkLoadError`.
-- **No loops:** `/index.html` is a real file, so it's served directly. The `/uploads` destination is an external host. No redirects are defined.
+| Request | Result |
+|---|---|
+| `/static/js/main.<hash>.js`, `/favicon.ico`, `/index.html` | real file |
+| `/uploads/products/x.jpg` | proxied to `https://charupottery.onrender.com/uploads/products/x.jpg` (rule 1) |
+| `/products/<slug>`, `/admin/orders`, `/my-orders`, `/orders/<id>`, `/reset-password/<token>` | `/index.html`; React Router renders the page (rule 2) |
+| `/static/js/missing.chunk.js` | **404** (excluded from rule 2, so a stale chunk fails clearly instead of returning HTML) |
+| `/api/...` | **404** on Vercel (excluded; real API calls go straight to Render via `REACT_APP_API_URL`) |
+| `/api` (no slash) | `/index.html`, and the app redirects to `/`. Harmless |
 
-Approved. It will be created once the exact production Render API URL is provided.
+- **No loops:** `/index.html` is a real file, so it's served directly. The rule-1 destination is an external host. No `redirects` are defined.
+- **Verify on the first preview deploy:** that Vercel's Create React App preset doesn't add its own catch-all fallback ahead of these rules. Request a missing `/static/js/x.js` and a missing `/api/x`, and both should be 404. The local simulation can't prove the platform's behaviour.
+- **Persistent media:** rule 1 only works while files survive on Render. Confirm a Persistent Disk is mounted at `/opt/render/project/src/Backend/uploads` (see render-backend-setup.md §3), or every backend deploy deletes uploaded images.
 
-## 6. Post-deploy checks (frontend only)
+## 7. Post-deploy checks (frontend only)
 
 - Open a deep link directly (e.g. `/products/<real-slug>`) and refresh → page loads.
 - Product images load (Network tab: `/uploads/...` → 200 image, not HTML).
